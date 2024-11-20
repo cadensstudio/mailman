@@ -1,11 +1,18 @@
 # Mailman
 
-Mailman is a project that sends contact form data in an email to a specified recipient using [Cloudflare Workers and Cloudflare Email Routing](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/).
+Mailman is a project that sends contact form data in an email to a specified recipient using [Cloudflare Workers and Cloudflare Email Routing](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/). It also includes spam protection using [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/tutorials/implicit-vs-explicit-rendering/) to ensure only legitimate submissions are processed.
 
 ## Prerequisites
 
 - Cloudflare account with Email Routing enabled.
 - Verified email addresses in Cloudflare Email Routing.
+- A sitekey and secret key. You can obtain the sitekey and secret key from the Cloudflare dashboard after adding your zone to Turnstile.
+
+## Project Features
+
+1. **Send Contact Form Entries**: Mailman sends contact form data directly to an email address using Cloudflare's Email Worker API.
+2. **Spam Protection**: Integration with Cloudflare Turnstile ensures that bots cannot send spam emails via the contact form.
+3. **Workers Logging**: Enhanced logging provides insight into form submissions and errors.
 
 ## Project Structure
 
@@ -22,13 +29,14 @@ Mailman is a project that sends contact form data in an email to a specified rec
    npm install
    ```
 
-2. **Set emails in `wrangler.toml`:**
+2. **Set environment variables in `wrangler.toml`:**
 
     ```toml
     [vars]
     SENDER = "sender@example.com"
     RECIPIENT = "verified_recipient@example.com"
     ```
+    *Note:* Set `TURNSTILE_SECRET_KEY` as a Wrangler secret either using `npx wrangler secret put <KEY>` or your Cloudflare dashboard.
 
 3. **Start the development server:**
 
@@ -44,7 +52,7 @@ Mailman is a project that sends contact form data in an email to a specified rec
 
 ## Usage
 
-Mailman accepts POST requests with form data as the body. By default, the form fields include `firstName`, `lastName`, `email`, and `message`.
+Mailman accepts POST requests with form data as the body. By default, the form fields include firstName, lastName, email, and message. Turnstile adds a hidden cf-turnstile-response field for server-side validation.
 
 ### Example Form
 
@@ -59,11 +67,15 @@ Mailman accepts POST requests with form data as the body. By default, the form f
   <label for="email">Email:</label>
   <input type="email" id="email" name="email" required>
 
-  <label for="reason">Reason:</label>
-  <textarea id="reason" name="reason" required></textarea>
+  <label for="message">Message:</label>
+  <textarea id="message" name="message" required></textarea>
+
+  <!-- Turnstile widget -->
+  <div class="cf-turnstile" data-sitekey="your-site-key"></div>
 
   <button type="submit">Send Message</button>
 </form>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 ```
 
 ### Example Request
@@ -74,6 +86,10 @@ You can also send a POST request using `curl`:
 curl -X POST https://your-worker-url.workers.dev \
   -d "firstName=John&lastName=Doe&email=john.doe@example.com&reason=Just%20saying%20hi!"
 ```
+
+### Turnstile Validation
+
+The server validates Turnstile tokens using Cloudflare’s `siteverify` API to block invalid submissions. Logs are added to your Cloudflare Worker dashboard to help track successful and failed attempts.
 
 ## License
 
