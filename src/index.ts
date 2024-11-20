@@ -5,12 +5,41 @@ export interface Env {
 	SEB: any;
 	SENDER: string;
 	RECIPIENT: string;
+	TURNSTILE_SECRET_KEY: string;
+}
+
+async function validateTurnstileToken(token: string, ip: string | null, secretKey: string): Promise<boolean> {
+	const formData = new FormData();
+	formData.append('secret', secretKey);
+	formData.append('response', token);
+	if (ip) {
+		formData.append('remoteip', ip);
+	}
+
+	const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+		method: 'POST',
+		body: formData,
+	});
+	const result: any = await response.json();
+	console.log({ message: 'performing turnstile siteverify', result: result });
+	return result.success;
 }
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		if (request.method === 'POST') {
 			const formData = await request.formData();
+			const entries = Object.fromEntries(formData.entries());
+
+			// Validate Turnstile token
+			const token = formData.get('cf-turnstile-response');
+			const ip = request.headers.get('CF-Connecting-IP');
+			const isValidTurnstile = await validateTurnstileToken(token as string, ip, env.TURNSTILE_SECRET_KEY);
+			if (!isValidTurnstile) {
+				console.log({ status: 'message blocked due to failed turnstile challenge', form_data: entries });
+				return new Response('Unauthorized request', { status: 403 });
+			}
+
 			const firstName = formData.get('firstName') as string;
 			const lastName = formData.get('lastName') as string;
 			const email = formData.get('email') as string;

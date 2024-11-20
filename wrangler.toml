@@ -4,9 +4,10 @@ main = "src/index.ts"
 compatibility_date = "2024-06-03"
 node_compat = true
 
-send_email = [
-  { name = "SEB" }
-]
+send_email = [{ name = "SEB" }]
+
+[observability]
+enabled = true
 
 [vars]
 SENDER = ""
